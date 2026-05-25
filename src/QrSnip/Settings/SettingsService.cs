@@ -75,7 +75,7 @@ public sealed class SettingsService : IDisposable
 
     private static string DefaultConfigPath() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "QrSnip",
+        AppDataMigration.NewFolderName,
         "config.json");
 
     private Settings LoadOrCreateDefault()

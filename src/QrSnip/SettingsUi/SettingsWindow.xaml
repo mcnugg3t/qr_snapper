@@ -1,0 +1,56 @@
+<Window x:Class="QrSnip.SettingsUi.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:QrSnip.SettingsUi"
+        Title="QR Snapper Settings"
+        Width="420"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#F8F8F8">
+    <StackPanel Margin="20" Orientation="Vertical">
+
+        <TextBlock Text="Snip hotkey" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <TextBlock Text="Click below, then press the key combination you want."
+                   FontSize="11" Foreground="#666" Margin="0,0,0,4" />
+        <ui:HotkeyCaptureControl x:Name="HotkeyControl" />
+
+        <CheckBox x:Name="AutoStartCheck"
+                  Content="Start QR Snapper when I sign in to Windows"
+                  Margin="0,16,0,0" />
+
+        <CheckBox x:Name="AutoPasteCheck"
+                  Content="Auto-paste decoded text into the active window after a snip"
+                  Margin="0,8,0,0" />
+        <TextBlock Text="(Useful when snipping QRs directly into a form. Pastes via Ctrl+V; may not work in elevated apps.)"
+                   FontSize="11" Foreground="#666"
+                   Margin="22,2,0,0"
+                   TextWrapping="Wrap" />
+
+        <CheckBox x:Name="ShowToastsCheck"
+                  Content="Show a notification after each successful snip"
+                  Margin="0,16,0,0" />
+        <TextBlock Text="(A failed snip ALWAYS shows a notification, regardless of this setting.)"
+                   FontSize="11" Foreground="#666"
+                   Margin="22,2,0,0"
+                   TextWrapping="Wrap" />
+
+        <CheckBox x:Name="DebugModeCheck"
+                  Content="Debug mode (enables verbose logging and the Test Capture tray item)"
+                  Margin="0,16,0,0" />
+
+        <Border BorderThickness="0,1,0,0"
+                BorderBrush="#DDD"
+                Margin="0,16,0,0"
+                Padding="0,12,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="CloseButton"
+                        Content="Close"
+                        Width="80"
+                        Height="28"
+                        IsDefault="True"
+                        IsCancel="True" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</Window>

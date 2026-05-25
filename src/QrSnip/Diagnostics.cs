@@ -1,9 +1,10 @@
 using System;
 using System.IO;
+using QrSnip.Settings;
 
 namespace QrSnip;
 
-// Minimal startup diagnostics. Writes to %LOCALAPPDATA%\QrSnip\startup.log
+// Minimal startup diagnostics. Writes to %LOCALAPPDATA%\QRSnapper\startup.log
 // so first-launch failures on teammate machines leave a trail we can ask for.
 //
 // Two levels:
@@ -26,7 +27,9 @@ internal static class Diagnostics
 
     private static readonly Lazy<string> s_logPath = new(() =>
     {
-        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QrSnip");
+        var dir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppDataMigration.NewFolderName);
         Directory.CreateDirectory(dir);
         return Path.Combine(dir, "startup.log");
     });

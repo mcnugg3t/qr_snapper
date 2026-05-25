@@ -74,7 +74,7 @@ internal static class Program
                 {
                     ev.Set();
                 }
-                Console.Error.WriteLine("QrSnip is already running; surfaced settings on the existing instance.");
+                Console.Error.WriteLine("QR Snapper is already running; surfaced settings on the existing instance.");
                 return 0;
             }
         }
@@ -83,7 +83,7 @@ internal static class Program
             // Fall through to silent exit if signaling fails for any reason
             // (permissions, race with first-instance shutdown, etc.).
         }
-        Console.Error.WriteLine("QrSnip is already running.");
+        Console.Error.WriteLine("QR Snapper is already running.");
         return 0;
     }
 

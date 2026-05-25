@@ -1,0 +1,65 @@
+<Window x:Class="QrSnip.Overlay.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        Cursor="Cross">
+    <!--
+        WindowStartupLocation is set explicitly in code-behind (we position
+        the window to cover its assigned monitor exactly).
+
+        AllowsTransparency=True + Background=Transparent + WindowStyle=None
+        is the WPF formula for a borderless click-through-capable window we
+        can draw a frozen-image + dim overlay onto.
+
+        Cursor=Cross gives the user an immediate visual signal that this is
+        a selection mode.
+    -->
+
+    <!--
+        Layout grid (all children share full window bounds):
+          1. Image: the frozen monitor capture, rendered at native size.
+          2. Rectangle (dim layer): 50% black overlay covering everything.
+          3. Canvas hosting the selection rectangle:
+             - A "punched out" non-dim region where the user dragged.
+             - A bright border around that region.
+    -->
+    <Grid>
+        <Image x:Name="FrozenImage"
+               Stretch="Fill"
+               SnapsToDevicePixels="True"
+               RenderOptions.BitmapScalingMode="NearestNeighbor" />
+
+        <Rectangle x:Name="DimLayer"
+                   Fill="#80000000"
+                   IsHitTestVisible="False" />
+
+        <!--
+            Selection-rect "hole": a rectangle filled with the frozen image
+            via a VisualBrush, sized to the selection. When the selection
+            is empty, this is collapsed.
+
+            Visibility is toggled from code-behind. Position + size are
+            updated via Canvas.SetLeft/SetTop and Width/Height on the
+            Rectangle's parent Border.
+        -->
+        <Canvas IsHitTestVisible="False">
+            <Border x:Name="SelectionBorder"
+                    Visibility="Collapsed"
+                    BorderThickness="2"
+                    BorderBrush="#FFFFFFFF"
+                    Background="Transparent">
+                <!--
+                    Inside the border, we paint a clipped portion of the
+                    frozen image at full brightness so the selection rect
+                    is a bright "hole" in the dim layer.
+                -->
+                <Rectangle x:Name="SelectionFill" />
+            </Border>
+        </Canvas>
+    </Grid>
+</Window>

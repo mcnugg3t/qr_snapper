@@ -35,7 +35,7 @@ public sealed class CaptureToDecodeIntegrationTests
         Assert.Single(monitors);
         var m = monitors[0];
 
-        var decoder = new ZXingQrDecoder();
+        var decoder = new ZXingCppQrDecoder();
         var results = decoder.Decode(m.Pixels, m.Width, m.Height, m.Stride);
 
         Assert.Single(results);

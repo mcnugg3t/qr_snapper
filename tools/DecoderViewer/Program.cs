@@ -4,23 +4,30 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using QrSnip.Decoding;
+using QrSnip.Decoding.Preprocessors;
 
 namespace DecoderViewer;
 
-// Visualizes what the QR decoder sees. Takes one or more image paths,
-// decodes each, and writes a side-by-side annotated PNG to %TEMP% showing:
-//   - the original image
-//   - any detected QR bounding boxes drawn in green
-//   - the decoded payload(s) printed below
+// Visualizes what the QR decoder pipeline sees. For each input image:
+//   1. Runs the raw ZXingQrDecoder on the original.
+//   2. Runs each IQrPreprocessor + ZXingQrDecoder on the preprocessor output.
+//   3. Saves an annotated PNG per attempt, plus a combined .summary.png.
 //
-// Useful when "the decoder said no" and you want to know why — is the QR
-// too small? too low-contrast? being detected but mis-decoded? Open the
-// annotated PNG and you can usually tell at a glance.
+// Output goes to %TEMP%\qr_snapper_decoder_view\<input-name>\, one folder
+// per input. The summary PNG shows the original + each preprocessor's
+// output side-by-side with green/red captions for decoded/failed.
+//
+// Useful when "the decoder said no" and you want to know WHY — open the
+// summary PNG and you can see whether (e.g.) adaptive contrast actually
+// made the QR visible vs. just made the noise more visible.
 //
 // Usage:
 //   dotnet run --project tools/DecoderViewer -- path/to/image.png [more...]
+//   dotnet run --project tools/DecoderViewer -- path/to/dir/   (processes every supported image)
 internal static class Program
 {
+    private record Stage(string Name, byte[] Bgra, int Width, int Height, int Stride, IReadOnlyList<QrResult> Results, long ElapsedMs);
+
     private static int Main(string[] args)
     {
         if (args.Length == 0)
@@ -37,36 +44,123 @@ internal static class Program
             return 1;
         }
 
-        var outDir = Path.Combine(Path.GetTempPath(), "qr_snapper_decoder_view");
-        Directory.CreateDirectory(outDir);
+        var outRoot = Path.Combine(Path.GetTempPath(), "qr_snapper_decoder_view");
+        // Clean previous output so old fixtures don't linger and confuse us.
+        if (Directory.Exists(outRoot)) Directory.Delete(outRoot, recursive: true);
+        Directory.CreateDirectory(outRoot);
 
-        var decoder = new ZXingQrDecoder();
-        var firstOutput = string.Empty;
+        var decoder = new ZXingCppQrDecoder();
+        var preprocessors = DefaultPreprocessorLadder.Build();
+
         foreach (var path in inputs)
         {
-            var sw = Stopwatch.StartNew();
-            var (pixels, w, h, stride) = LoadBgra(path);
-            var results = decoder.Decode(pixels, w, h, stride);
-            sw.Stop();
-
-            var outPath = Path.Combine(outDir, Path.GetFileNameWithoutExtension(path) + ".decoded.png");
-            WriteAnnotated(path, results, sw.ElapsedMilliseconds, outPath);
-            firstOutput = firstOutput == string.Empty ? outPath : firstOutput;
-
-            Console.WriteLine($"{Path.GetFileName(path)}: found {results.Count} in {sw.ElapsedMilliseconds}ms");
-            foreach (var r in results)
-            {
-                Console.WriteLine($"  -> {Truncate(r.Payload, 80)}");
-            }
-            Console.WriteLine($"  annotated: {outPath}");
+            ProcessOne(path, decoder, preprocessors, outRoot);
         }
 
-        // Open the folder so the user can see all annotated outputs.
-        if (firstOutput != string.Empty)
-        {
-            Process.Start(new ProcessStartInfo("explorer.exe", outDir) { UseShellExecute = true });
-        }
+        Process.Start(new ProcessStartInfo("explorer.exe", outRoot) { UseShellExecute = true });
         return 0;
+    }
+
+    private static void ProcessOne(string path, IQrDecoder decoder, IReadOnlyList<IQrPreprocessor> preprocessors, string outRoot)
+    {
+        var name = Path.GetFileNameWithoutExtension(path);
+        var fixtureDir = Path.Combine(outRoot, name);
+        Directory.CreateDirectory(fixtureDir);
+
+        var (bgra, w, h, stride) = LoadBgra(path);
+        var stages = new List<Stage>();
+
+        // Stage 0: raw original.
+        var sw = Stopwatch.StartNew();
+        var rawResults = decoder.Decode(bgra, w, h, stride);
+        sw.Stop();
+        stages.Add(new Stage("original", bgra, w, h, stride, rawResults, sw.ElapsedMilliseconds));
+
+        // Stages 1+: each preprocessor in isolation. (Each preprocessor sees
+        // the raw input, NOT the previous stage's output — matches what
+        // PreprocessingQrDecoder does at runtime.)
+        foreach (var p in preprocessors)
+        {
+            sw.Restart();
+            var processed = p.Apply(bgra, w, h, stride);
+            var results = decoder.Decode(processed.Bgra, processed.Width, processed.Height, processed.Stride);
+            sw.Stop();
+            stages.Add(new Stage(p.Name, processed.Bgra, processed.Width, processed.Height, processed.Stride, results, sw.ElapsedMilliseconds));
+        }
+
+        // Per-stage annotated PNGs.
+        foreach (var s in stages)
+        {
+            var stagePath = Path.Combine(fixtureDir, $"{s.Name}.png");
+            WriteAnnotatedStage(s, stagePath);
+        }
+
+        // Console summary line.
+        var firstWin = stages.FirstOrDefault(s => s.Results.Count > 0);
+        if (firstWin is null)
+        {
+            Console.WriteLine($"{Path.GetFileName(path)}: NO STAGE DECODED ({stages.Count} attempts)");
+        }
+        else
+        {
+            Console.WriteLine($"{Path.GetFileName(path)}: decoded by '{firstWin.Name}' ({firstWin.ElapsedMs}ms) -> {Truncate(firstWin.Results[0].Payload, 80)}");
+        }
+    }
+
+    private static void WriteAnnotatedStage(Stage stage, string outPath)
+    {
+        const int captionHeight = 60;
+        using var bmp = BgraToBitmap(stage.Bgra, stage.Width, stage.Height, stage.Stride);
+        using var annotated = new Bitmap(stage.Width, stage.Height + captionHeight, PixelFormat.Format32bppArgb);
+        using var g = Graphics.FromImage(annotated);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+
+        g.DrawImage(bmp, 0, 0, stage.Width, stage.Height);
+
+        using var boxPen = new Pen(Color.LimeGreen, 3);
+        foreach (var r in stage.Results)
+        {
+            var b = r.Box;
+            if (b.Width > 0 && b.Height > 0)
+            {
+                g.DrawRectangle(boxPen, b.X, b.Y, b.Width, b.Height);
+            }
+        }
+
+        g.FillRectangle(Brushes.White, 0, stage.Height, stage.Width, captionHeight);
+        var statusText = stage.Results.Count == 0
+            ? $"[{stage.Name}] NO QR ({stage.ElapsedMs}ms)"
+            : $"[{stage.Name}] FOUND {stage.Results.Count} in {stage.ElapsedMs}ms";
+        using var titleFont = new Font("Segoe UI", 11, FontStyle.Bold);
+        using var bodyFont = new Font("Segoe UI", 10);
+        var titleColor = stage.Results.Count == 0 ? Brushes.Red : Brushes.DarkGreen;
+        g.DrawString(statusText, titleFont, titleColor, 8, stage.Height + 4);
+
+        if (stage.Results.Count > 0)
+        {
+            g.DrawString(Truncate(stage.Results[0].Payload, 90), bodyFont, Brushes.Black, 8, stage.Height + 28);
+        }
+
+        annotated.Save(outPath, ImageFormat.Png);
+    }
+
+    private static Bitmap BgraToBitmap(byte[] bgra, int width, int height, int stride)
+    {
+        var bmp = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+        var rect = new Rectangle(0, 0, width, height);
+        var bits = bmp.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+        try
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Marshal.Copy(bgra, y * stride, IntPtr.Add(bits.Scan0, y * bits.Stride), width * 4);
+            }
+        }
+        finally
+        {
+            bmp.UnlockBits(bits);
+        }
+        return bmp;
     }
 
     private static List<string> ExpandInputs(string[] args)
@@ -116,49 +210,6 @@ internal static class Program
         {
             copy.UnlockBits(bits);
         }
-    }
-
-    private static void WriteAnnotated(string sourcePath, IReadOnlyList<QrResult> results, long elapsedMs, string outPath)
-    {
-        using var src = Image.FromFile(sourcePath);
-
-        const int captionHeight = 80;
-        using var annotated = new Bitmap(src.Width, src.Height + captionHeight, PixelFormat.Format32bppArgb);
-        using var g = Graphics.FromImage(annotated);
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-
-        // Draw the source image at the top.
-        g.DrawImage(src, 0, 0, src.Width, src.Height);
-
-        // Draw any detected QR bounding boxes in lime green.
-        using var boxPen = new Pen(Color.LimeGreen, 3);
-        foreach (var r in results)
-        {
-            var b = r.Box;
-            if (b.Width > 0 && b.Height > 0)
-            {
-                g.DrawRectangle(boxPen, b.X, b.Y, b.Width, b.Height);
-            }
-        }
-
-        // Caption area: white background, status text on top.
-        g.FillRectangle(Brushes.White, 0, src.Height, src.Width, captionHeight);
-        var statusText = results.Count == 0
-            ? $"NO QR DETECTED ({elapsedMs}ms)"
-            : $"FOUND {results.Count} in {elapsedMs}ms:";
-        using var titleFont = new Font("Segoe UI", 11, FontStyle.Bold);
-        using var bodyFont = new Font("Segoe UI", 10);
-        var titleColor = results.Count == 0 ? Brushes.Red : Brushes.DarkGreen;
-        g.DrawString(statusText, titleFont, titleColor, 8, src.Height + 4);
-
-        var y = src.Height + 28;
-        foreach (var r in results.Take(3))
-        {
-            g.DrawString(Truncate(r.Payload, 90), bodyFont, Brushes.Black, 8, y);
-            y += 18;
-        }
-
-        annotated.Save(outPath, ImageFormat.Png);
     }
 
     private static string Truncate(string s, int max)

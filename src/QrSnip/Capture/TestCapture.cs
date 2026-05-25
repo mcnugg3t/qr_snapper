@@ -43,7 +43,7 @@ internal static class TestCapture
             Diagnostics.LogException("TestCapture", ex);
             MessageBox.Show(
                 $"Test capture failed:\n\n{ex.GetType().Name}: {ex.Message}\n\nSee startup.log for details.",
-                "QrSnip — Test Capture",
+                "QR Snapper — Test Capture",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }

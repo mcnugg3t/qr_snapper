@@ -6,7 +6,9 @@ using System.Windows;
 using System.Windows.Controls;
 using H.NotifyIcon;
 using QrSnip.Capture;
+using QrSnip.Hotkey;
 using QrSnip.Settings;
+using QrSnip.SettingsUi;
 
 namespace QrSnip;
 
@@ -30,11 +32,20 @@ internal sealed class TrayIcon : IDisposable
     private readonly TaskbarIcon _taskbar;
     private readonly Icon? _ownedIcon;
     private readonly SettingsService _settings;
+    private readonly IHotkeyListener _hotkeyListener;
+    private readonly AutoStartService _autoStart;
     private MenuItem? _testCaptureItem;
+    private SettingsWindow? _settingsWindow;
 
-    public TrayIcon(SettingsService settings)
+    // Exposed so App.xaml.cs can construct a TrayToastNotifier from the
+    // same TaskbarIcon — keeping toast lifetime tied to the tray icon's.
+    internal TaskbarIcon TaskbarIcon => _taskbar;
+
+    public TrayIcon(SettingsService settings, IHotkeyListener hotkeyListener, AutoStartService autoStart)
     {
         _settings = settings;
+        _hotkeyListener = hotkeyListener;
+        _autoStart = autoStart;
         _settings.Changed += OnSettingsChanged;
 
         Diagnostics.LogVerbose("TrayIcon ctor: loading icon");
@@ -42,7 +53,7 @@ internal sealed class TrayIcon : IDisposable
         Diagnostics.LogVerbose("TrayIcon ctor: constructing TaskbarIcon");
         _taskbar = new TaskbarIcon
         {
-            ToolTipText = "QrSnip",
+            ToolTipText = "QR Snapper",
             Icon = _ownedIcon,
             ContextMenu = BuildContextMenu(),
         };
@@ -52,24 +63,65 @@ internal sealed class TrayIcon : IDisposable
         // system tray until ForceCreate is called explicitly. `enablesEfficiencyMode:
         // false` keeps the process from being throttled by Windows when the icon is
         // the only UI surface (we still need the message pump alive for hotkeys).
+        //
+        // ForceCreate can fail with "TryCreate failed" when the Windows shell
+        // hasn't finished settling — e.g., immediately after an installer
+        // completes, the tray is busy refreshing its cache. We retry up to 3
+        // times with 250ms backoff before giving up. The library's own retry
+        // does a "TryDelete first" check; this adds wait-and-retry on top.
         Diagnostics.LogVerbose("TrayIcon ctor: calling ForceCreate");
-        _taskbar.ForceCreate(enablesEfficiencyMode: false);
+        ForceCreateWithRetry();
         Diagnostics.LogVerbose("TrayIcon ctor: done");
+    }
+
+    private void ForceCreateWithRetry()
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                _taskbar.ForceCreate(enablesEfficiencyMode: false);
+                if (attempt > 1)
+                {
+                    Diagnostics.Log($"ForceCreate succeeded on attempt {attempt}/{maxAttempts}");
+                }
+                return;
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("TryCreate"))
+            {
+                if (attempt == maxAttempts)
+                {
+                    Diagnostics.LogException($"ForceCreate failed after {maxAttempts} attempts", ex);
+                    throw;
+                }
+                Diagnostics.Log($"ForceCreate attempt {attempt}/{maxAttempts} failed (shell not ready?); retrying in 250ms");
+                System.Threading.Thread.Sleep(250);
+            }
+        }
     }
 
     public void ShowSettings()
     {
-        // Stage 6 hookup. For now we just log so we can confirm the
-        // second-instance signaling actually delivers.
-        Diagnostics.LogVerbose("TrayIcon.ShowSettings invoked (no SettingsWindow yet).");
+        // Single SettingsWindow instance — if the user clicks Settings...
+        // while one is already open, we just bring it to the front instead
+        // of opening a second one.
+        if (_settingsWindow is not null)
+        {
+            _settingsWindow.Activate();
+            return;
+        }
+        _settingsWindow = new SettingsWindow(_settings, _hotkeyListener, _autoStart);
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Show();
     }
 
     private ContextMenu BuildContextMenu()
     {
         var menu = new ContextMenu();
 
-        var settingsItem = new MenuItem { Header = "Settings...", IsEnabled = false };
-        // Wired in Stage 6 when SettingsWindow exists.
+        var settingsItem = new MenuItem { Header = "Settings..." };
+        settingsItem.Click += (_, _) => ShowSettings();
         menu.Items.Add(settingsItem);
 
         // The "Test Capture (debug)" item is visible only when DebugMode is on.
@@ -83,7 +135,7 @@ internal sealed class TrayIcon : IDisposable
 
         menu.Items.Add(new Separator());
 
-        var quitItem = new MenuItem { Header = "Quit QrSnip" };
+        var quitItem = new MenuItem { Header = "Quit QR Snapper" };
         quitItem.Click += (_, _) => Application.Current.Shutdown();
         menu.Items.Add(quitItem);
 

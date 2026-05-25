@@ -8,6 +8,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using QrSnip.Decoding;
+using QrSnip.Decoding.Preprocessors;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -48,7 +49,11 @@ public sealed class FixtureDecodeTests
 
         Assert.NotEmpty(images);
 
-        var decoder = new ZXingQrDecoder();
+        // Same composition as App.xaml.cs uses in production: ZXingCpp first,
+        // then the preprocessor ladder for difficult inputs.
+        var decoder = new PreprocessingQrDecoder(
+            new ZXingCppQrDecoder(),
+            DefaultPreprocessorLadder.Build());
         var rows = new List<Row>();
         var hardFailures = new List<string>();
 
@@ -122,7 +127,7 @@ public sealed class FixtureDecodeTests
     };
 
     // Loads any image file into a tightly-packed BGRA buffer matching the
-    // shape ZXingQrDecoder expects. Stride == width * 4 by construction.
+    // shape the decoder expects. Stride == width * 4 by construction.
     private static (byte[] bgra, int width, int height, int stride) LoadBgra(string path)
     {
         using var src = new Bitmap(path);
@@ -132,7 +137,7 @@ public sealed class FixtureDecodeTests
         try
         {
             // GDI+ Format32bppArgb is actually BGRA byte order in memory; same
-            // layout ZXingQrDecoder reads. Stride may include row padding so we
+            // layout the decoder reads. Stride may include row padding so we
             // copy row-by-row into a tight buffer to keep the contract simple.
             var width = copy.Width;
             var height = copy.Height;

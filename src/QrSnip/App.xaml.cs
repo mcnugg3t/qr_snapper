@@ -1,7 +1,13 @@
 using System;
 using System.Windows;
 using QrSnip.Capture;
+using QrSnip.Clipboard;
+using QrSnip.Decoding;
+using QrSnip.Decoding.Preprocessors;
 using QrSnip.Hotkey;
+using QrSnip.Interop;
+using QrSnip.Notifications;
+using QrSnip.Overlay;
 using QrSnip.Settings;
 
 namespace QrSnip;
@@ -11,6 +17,15 @@ public partial class App : Application
     private SettingsService? _settings;
     private TrayIcon? _tray;
     private IHotkeyListener? _hotkeyListener;
+    private AutoStartService? _autoStart;
+
+    // The snip pipeline dependencies. Constructed once at startup so each
+    // hotkey press just spins up a fresh SnipSession with them.
+    private IScreenCapture? _screenCapture;
+    private IQrDecoder? _qrDecoder;
+    private IClipboardService? _clipboard;
+    private AutoPasteService? _autoPaste;
+    private IToastNotifier? _toast;
 
     // The tray icon owner. Exposed so Program.cs can wire the second-instance
     // signal to it after Startup completes.
@@ -30,19 +45,52 @@ public partial class App : Application
         // can silently fail to show even when the icon data loads fine.
         try
         {
+            // Migrate any pre-rename AppData folders (QrSnip -> QRSnapper).
+            // Must run BEFORE SettingsService construction so it picks up
+            // the moved config.json from the new path.
+            AppDataMigration.Run();
+
             _settings = new SettingsService();
             // Now that settings exist, gate verbose logging on DebugMode.
             Diagnostics.SetVerboseGate(() => _settings.Current.DebugMode);
 
-            _tray = new TrayIcon(_settings);
+            // Composition root: instantiate the snip pipeline once.
+            // The decoder is a PreprocessingQrDecoder wrapping ZXingCppQrDecoder.
+            // The C++ port's locator handles eroded/blurry finder patterns much
+            // better than the .NET port; for the clean-input case it's also
+            // faster. Preprocessor ladder still wraps it as a fallback for the
+            // hardest inputs.
+            _screenCapture = new WgcScreenCapture();
+            _qrDecoder = new PreprocessingQrDecoder(
+                new ZXingCppQrDecoder(),
+                DefaultPreprocessorLadder.Build());
+            _clipboard = new WindowsClipboardService();
+            _autoPaste = new AutoPasteService();
+
+            // AutoStartService needs the EXE path so it can write the right
+            // entry in HKCU\Run. Environment.ProcessPath is the absolute
+            // path to the currently-running executable.
+            _autoStart = new AutoStartService(Environment.ProcessPath ?? "QRSnapper.exe");
+
             WireUpHotkey();
+
+            // TrayIcon needs the dependencies for the Settings... menu item
+            // to open the SettingsWindow. Constructed last so all wiring is in
+            // place before the menu becomes interactive.
+            _tray = new TrayIcon(_settings, _hotkeyListener!, _autoStart);
+
+            // Toast notifier reuses the TaskbarIcon owned by TrayIcon — so
+            // it has to be constructed AFTER the tray. Lifetime is tied to
+            // the tray; the tray's Dispose tears down the TaskbarIcon and
+            // any pending toasts disappear with it.
+            _toast = new TrayToastNotifier(_tray.TaskbarIcon);
         }
         catch (Exception ex)
         {
             Diagnostics.LogException("App.OnStartup", ex);
             MessageBox.Show(
-                $"QrSnip failed to start.\n\n{ex.Message}\n\nSee %LOCALAPPDATA%\\QrSnip\\startup.log for details.",
-                "QrSnip startup error",
+                $"QR Snapper failed to start.\n\n{ex.Message}\n\nSee %LOCALAPPDATA%\\QRSnapper\\startup.log for details.",
+                "QR Snapper startup error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             Shutdown(1);
@@ -58,8 +106,28 @@ public partial class App : Application
         _hotkeyListener = new RegisterHotKeyListener();
         _hotkeyListener.HotkeyPressed += async (_, _) =>
         {
-            Diagnostics.LogVerbose("Hotkey fired");
-            await TestCapture.RunAsync();
+            Diagnostics.LogVerbose("Hotkey fired -> SnipSession");
+            try
+            {
+                // Capture the active window NOW, before the overlay steals
+                // focus. Used by auto-paste to restore focus before
+                // synthesizing Ctrl+V. Recapturing later would just give
+                // us our own OverlayWindow.
+                var autoPasteTarget = _autoPaste!.GetForegroundWindowHandle();
+                var snapshot = _settings!.Current;
+
+                var session = new SnipSession(
+                    _screenCapture!, _qrDecoder!, _clipboard!,
+                    _autoPaste, _toast!,
+                    snapshot.AutoPasteEnabled,
+                    snapshot.ShowToastsOnSuccess,
+                    autoPasteTarget);
+                await session.RunAsync();
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.LogException("SnipSession.RunAsync", ex);
+            }
         };
 
         var registered = HotkeyFallbackChain.RegisterFirstAvailable(_hotkeyListener, _settings!.Current.Hotkey);
