@@ -1,6 +1,6 @@
 # QR Snapper
 
-![QR Snapper logo — a snapping turtle with a QR-patterned shell](src/QrSnip/Assets/readme_img.png)
+<img src="src/QrSnip/Assets/readme_img.png" alt="QR Snapper logo — a snapping turtle with a QR-patterned shell" width="400" />
 
 A tiny Windows tray app that snips QR codes off your screen.
 
