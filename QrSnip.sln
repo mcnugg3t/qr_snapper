@@ -1,0 +1,59 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{361809E3-0C0C-40DF-96A7-858EEC9A228D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QrSnip", "src\QrSnip\QrSnip.csproj", "{0178BED2-03C1-49D5-A25C-09EC4D093DF1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{3D66B2F1-D3E1-40F7-87CE-9CA870169F67}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QrSnip.Tests", "tests\QrSnip.Tests\QrSnip.Tests.csproj", "{CE354D8F-FD66-4207-AA3E-C847A485867F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{1843A764-7157-442A-BCA7-FFFA78E75782}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HotkeyProbe", "tools\HotkeyProbe\HotkeyProbe.csproj", "{7ECD095B-1BE7-40A9-A740-1D015D3C52EA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FixtureGen", "tools\FixtureGen\FixtureGen.csproj", "{20D21E51-E1A3-4870-8C32-06C1BCAD5722}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DecoderViewer", "tools\DecoderViewer\DecoderViewer.csproj", "{2D26C220-DAAE-4A19-A54E-85420D994D89}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0178BED2-03C1-49D5-A25C-09EC4D093DF1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0178BED2-03C1-49D5-A25C-09EC4D093DF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0178BED2-03C1-49D5-A25C-09EC4D093DF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0178BED2-03C1-49D5-A25C-09EC4D093DF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE354D8F-FD66-4207-AA3E-C847A485867F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE354D8F-FD66-4207-AA3E-C847A485867F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE354D8F-FD66-4207-AA3E-C847A485867F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE354D8F-FD66-4207-AA3E-C847A485867F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7ECD095B-1BE7-40A9-A740-1D015D3C52EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7ECD095B-1BE7-40A9-A740-1D015D3C52EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7ECD095B-1BE7-40A9-A740-1D015D3C52EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7ECD095B-1BE7-40A9-A740-1D015D3C52EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{20D21E51-E1A3-4870-8C32-06C1BCAD5722}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{20D21E51-E1A3-4870-8C32-06C1BCAD5722}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{20D21E51-E1A3-4870-8C32-06C1BCAD5722}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20D21E51-E1A3-4870-8C32-06C1BCAD5722}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2D26C220-DAAE-4A19-A54E-85420D994D89}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{2D26C220-DAAE-4A19-A54E-85420D994D89}.Debug|Any CPU.Build.0 = Debug|x64
+		{2D26C220-DAAE-4A19-A54E-85420D994D89}.Release|Any CPU.ActiveCfg = Release|x64
+		{2D26C220-DAAE-4A19-A54E-85420D994D89}.Release|Any CPU.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0178BED2-03C1-49D5-A25C-09EC4D093DF1} = {361809E3-0C0C-40DF-96A7-858EEC9A228D}
+		{CE354D8F-FD66-4207-AA3E-C847A485867F} = {3D66B2F1-D3E1-40F7-87CE-9CA870169F67}
+		{7ECD095B-1BE7-40A9-A740-1D015D3C52EA} = {1843A764-7157-442A-BCA7-FFFA78E75782}
+		{20D21E51-E1A3-4870-8C32-06C1BCAD5722} = {1843A764-7157-442A-BCA7-FFFA78E75782}
+		{2D26C220-DAAE-4A19-A54E-85420D994D89} = {1843A764-7157-442A-BCA7-FFFA78E75782}
+	EndGlobalSection
+EndGlobal

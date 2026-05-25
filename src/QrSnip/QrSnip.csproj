@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>QrSnip</AssemblyName>
+    <RootNamespace>QrSnip</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Win2D 1.4.0+ pulls in WindowsAppSDK transitively, which requires a
+         platform-specific RID. We're Windows-only x64 anyway (Stage 7's MSIX
+         publishes self-contained for win-x64), so pin it here. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+
+    <!--
+      We hand-write Program.cs as the composition root, so the WPF SDK should not
+      auto-emit a Main from App.xaml. Dropping the implicit ApplicationDefinition
+      makes the SDK fall back to including App.xaml as a Page, which compiles the
+      XAML into the assembly without owning the entry point.
+    -->
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Expose internal types to the test assembly so tests can exercise
+         helpers (like ClipboardRetry) that shouldn't be public API. The
+         .NET-idiomatic way to say "internal, except for tests." -->
+    <InternalsVisibleTo Include="QrSnip.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.3.0" />
+    <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Embed the ICO as an assembly resource so we can construct a
+         System.Drawing.Icon from its stream and pick the right ICO frame
+         for the current tray DPI. The WPF Resource/pack-URI path forces
+         BitmapImage, which only decodes the first ICO frame. -->
+    <EmbeddedResource Include="Assets\qr_snapper_icon.ico" LogicalName="qr_snapper_icon.ico" />
+  </ItemGroup>
+
+</Project>

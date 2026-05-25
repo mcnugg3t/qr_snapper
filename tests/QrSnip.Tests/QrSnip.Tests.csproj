@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+
+    <!-- QrSnip pulls in Win2D, which transitively pulls in WindowsAppSDK,
+         which requires either an explicit runtime package reference or
+         self-contained mode. Self-contained is simpler for tests. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <WindowsAppSdkSelfContained>true</WindowsAppSdkSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.1" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QrSnip\QrSnip.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copy fixtures to the test output directory so FixtureDecodeTests can
+         find them by relative path at runtime. Adding new fixtures to the
+         fixtures/ folder picks them up automatically on next build. -->
+    <None Include="fixtures\**" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+</Project>
