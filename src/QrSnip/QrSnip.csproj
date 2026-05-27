@@ -16,9 +16,9 @@
     <!-- File metadata. Visible in Windows Explorer → file Properties →
          Details tab. Also marginally reduces AV-flagging because blank
          metadata correlates with malware in heuristic scoring. -->
-    <Version>1.0.0</Version>
-    <FileVersion>1.0.0.0</FileVersion>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Version>1.0.1</Version>
+    <FileVersion>1.0.1.0</FileVersion>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
     <Product>QR Snapper</Product>
     <Description>Tray app that snips a screen region and decodes any QR codes inside to the clipboard.</Description>
     <Company>Caleb Stevens</Company>

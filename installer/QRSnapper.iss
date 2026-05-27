@@ -9,7 +9,7 @@
 ; first, then invokes ISCC.exe on this file. Output goes to installer\Output\.
 
 #define MyAppName "QR Snapper"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "Caleb Stevens"
 #define MyAppExeName "QRSnapper.exe"
 #define MyAppDescription "Snip a screen region and decode any QR codes inside to your clipboard."

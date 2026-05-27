@@ -27,6 +27,18 @@ if (-not (Test-Path $Iscc)) {
     exit 1
 }
 
+# --- Step 0: stop any running QRSnapper.exe ---
+# A running instance holds the EXE open, and `dotnet publish` will then fail
+# to overwrite it with the new build. Killing here is safe -- we're about to
+# replace the binary anyway. The single-instance mutex releases cleanly on
+# process exit so subsequent launches will pick up the new build.
+$running = Get-Process -Name QRSnapper -ErrorAction SilentlyContinue
+if ($running) {
+    Write-Host "Stopping running QRSnapper (PID $($running.Id))..." -ForegroundColor Cyan
+    Stop-Process -Id $running.Id -Force
+    Start-Sleep -Milliseconds 500
+}
+
 # --- Step 1: publish ---
 Write-Host "Publishing self-contained Release build..." -ForegroundColor Cyan
 Push-Location $RepoRoot
