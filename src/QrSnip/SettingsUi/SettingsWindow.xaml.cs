@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Windows.Controls;
 using QrSnip.Hotkey;
 using QrSnip.Settings;
 // Disambiguate: 'Hotkey' is the namespace; HotkeyValue is the type.
@@ -52,6 +53,20 @@ public partial class SettingsWindow : Window
         AutoPasteCheck.Checked   += (_, _) => OnAutoPasteChanged(true);
         AutoPasteCheck.Unchecked += (_, _) => OnAutoPasteChanged(false);
 
+        // ComboBox uses Tag strings ("None"/"Tab"/"Enter") that map 1:1 to
+        // the AutoPasteAppendKey enum names. Select the item whose Tag
+        // matches the persisted setting.
+        var currentAppendName = _settings.Current.AutoPasteAppendKey.ToString();
+        foreach (ComboBoxItem item in AppendKeyCombo.Items)
+        {
+            if ((string)item.Tag == currentAppendName)
+            {
+                AppendKeyCombo.SelectedItem = item;
+                break;
+            }
+        }
+        AppendKeyCombo.SelectionChanged += OnAppendKeyChanged;
+
         ShowToastsCheck.IsChecked = _settings.Current.ShowToastsOnSuccess;
         ShowToastsCheck.Checked   += (_, _) => OnShowToastsChanged(true);
         ShowToastsCheck.Unchecked += (_, _) => OnShowToastsChanged(false);
@@ -99,6 +114,15 @@ public partial class SettingsWindow : Window
     private void OnAutoPasteChanged(bool enabled)
     {
         _settings.Save(_settings.Current with { AutoPasteEnabled = enabled });
+    }
+
+    private void OnAppendKeyChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (AppendKeyCombo.SelectedItem is ComboBoxItem item &&
+            Enum.TryParse<AutoPasteAppendKey>((string)item.Tag, out var key))
+        {
+            _settings.Save(_settings.Current with { AutoPasteAppendKey = key });
+        }
     }
 
     private void OnShowToastsChanged(bool enabled)

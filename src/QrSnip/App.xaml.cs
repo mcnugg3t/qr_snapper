@@ -120,6 +120,7 @@ public partial class App : Application
                     _screenCapture!, _qrDecoder!, _clipboard!,
                     _autoPaste, _toast!,
                     snapshot.AutoPasteEnabled,
+                    snapshot.AutoPasteAppendKey,
                     snapshot.ShowToastsOnSuccess,
                     autoPasteTarget);
                 await session.RunAsync();

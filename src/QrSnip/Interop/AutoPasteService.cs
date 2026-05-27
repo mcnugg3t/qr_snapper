@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using QrSnip.Settings;
 
 namespace QrSnip.Interop;
 
@@ -25,10 +27,12 @@ public sealed class AutoPasteService
     public IntPtr GetForegroundWindowHandle() => GetForegroundWindow();
 
     // Restores focus to the captured target window and synthesizes a
-    // Ctrl+V keystroke. Returns true on best-effort success — Windows
-    // input synthesis can silently no-op in elevated contexts (UIPI), so
-    // we can't actually verify the paste landed.
-    public async Task<bool> PasteToWindowAsync(IntPtr targetWindow)
+    // Ctrl+V keystroke, optionally followed by `appendKey` (e.g. Tab to
+    // advance to the next form field in a lab software workflow).
+    // Returns true on best-effort success — Windows input synthesis can
+    // silently no-op in elevated contexts (UIPI), so we can't actually
+    // verify the paste landed.
+    public async Task<bool> PasteToWindowAsync(IntPtr targetWindow, AutoPasteAppendKey appendKey = AutoPasteAppendKey.None)
     {
         if (targetWindow == IntPtr.Zero)
         {
@@ -52,7 +56,7 @@ public sealed class AutoPasteService
         // empirically reliable; less and we sometimes lose the first event.
         await Task.Delay(50);
 
-        var inputs = BuildCtrlVSequence();
+        var inputs = BuildCtrlVSequence(appendKey);
         var sent = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
         if (sent != (uint)inputs.Length)
         {
@@ -61,25 +65,45 @@ public sealed class AutoPasteService
             return false;
         }
 
-        Diagnostics.LogVerbose($"AutoPaste: pasted into window 0x{targetWindow.ToInt64():X}");
+        Diagnostics.LogVerbose($"AutoPaste: pasted into window 0x{targetWindow.ToInt64():X} (appendKey={appendKey})");
         return true;
     }
 
-    // Builds a sequence of 4 keyboard events: Ctrl down, V down, V up, Ctrl up.
-    // Each one is an INPUT struct with KEYBDINPUT payload.
-    private static INPUT[] BuildCtrlVSequence()
+    // Builds the keyboard event sequence: Ctrl+V always, optionally followed
+    // by a single trailing key (Tab/Enter for workflow integration). Each
+    // event is an INPUT struct with KEYBDINPUT payload.
+    private static INPUT[] BuildCtrlVSequence(AutoPasteAppendKey appendKey)
     {
         const ushort VK_CONTROL = 0x11;
-        const ushort VK_V = 0x56;
+        const ushort VK_V       = 0x56;
+        const ushort VK_TAB     = 0x09;
+        const ushort VK_RETURN  = 0x0D;
         const uint KEYEVENTF_KEYUP = 0x0002;
 
-        return new[]
+        var events = new List<INPUT>(6)
         {
             MakeKey(VK_CONTROL, flags: 0),
             MakeKey(VK_V, flags: 0),
             MakeKey(VK_V, flags: KEYEVENTF_KEYUP),
             MakeKey(VK_CONTROL, flags: KEYEVENTF_KEYUP),
         };
+
+        // Append the trailing key AFTER releasing Ctrl, so Tab/Enter
+        // doesn't get interpreted as Ctrl+Tab / Ctrl+Enter (which would
+        // do something completely different in most apps).
+        var appendVk = appendKey switch
+        {
+            AutoPasteAppendKey.Tab   => VK_TAB,
+            AutoPasteAppendKey.Enter => VK_RETURN,
+            _ => (ushort)0,
+        };
+        if (appendVk != 0)
+        {
+            events.Add(MakeKey(appendVk, flags: 0));
+            events.Add(MakeKey(appendVk, flags: KEYEVENTF_KEYUP));
+        }
+
+        return events.ToArray();
     }
 
     private static INPUT MakeKey(ushort vk, uint flags) => new()

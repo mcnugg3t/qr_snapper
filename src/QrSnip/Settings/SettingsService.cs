@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 
 namespace QrSnip.Settings;
@@ -135,6 +136,10 @@ public sealed class SettingsService : IDisposable
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        // Serialize enums as their string name ("tab") rather than the
+        // underlying integer ("1") so users editing config.json by hand
+        // see something readable.
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
     public void Dispose()

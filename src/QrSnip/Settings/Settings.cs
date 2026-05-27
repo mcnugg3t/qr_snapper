@@ -35,6 +35,16 @@ public sealed record Settings(
     // wrong app are annoying; this is a power-user opt-in.
     bool AutoPasteEnabled = false,
 
+    // After Ctrl+V fires during auto-paste, optionally synthesize one
+    // more keystroke (Tab to advance to the next form field, Enter to
+    // submit). Only takes effect when AutoPasteEnabled is true. Default
+    // None preserves the original auto-paste behavior.
+    //
+    // Originally added for the RRL lab software workflow where each QR
+    // scan needs to be followed by Tab to move the cursor to the next
+    // sample field.
+    AutoPasteAppendKey AutoPasteAppendKey = AutoPasteAppendKey.None,
+
     // When true, a tray balloon/toast is shown after a successful snip
     // with the decoded payload (truncated). Default false per the
     // quiet-by-default principle — the clipboard update / blue flash is
@@ -45,3 +55,14 @@ public sealed record Settings(
     // this setting, because silent clipboard failure is the worst possible
     // bug (user pastes stale content thinking it was the snip).
     bool ShowToastsOnSuccess = false);
+
+// Key that AutoPasteService synthesizes after Ctrl+V. Persisted by name
+// in config.json (System.Text.Json's JsonStringEnumConverter is registered
+// in SettingsService.JsonOptions so users see "Tab" not "1" if they open
+// the JSON file by hand).
+public enum AutoPasteAppendKey
+{
+    None,
+    Tab,
+    Enter,
+}

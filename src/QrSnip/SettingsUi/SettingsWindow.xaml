@@ -26,6 +26,14 @@
                    FontSize="11" Foreground="#666"
                    Margin="22,2,0,0"
                    TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" Margin="22,6,0,0">
+            <TextBlock Text="After paste, press:" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <ComboBox x:Name="AppendKeyCombo" Width="120" SelectedIndex="0">
+                <ComboBoxItem Content="(nothing)" Tag="None" />
+                <ComboBoxItem Content="Tab"       Tag="Tab" />
+                <ComboBoxItem Content="Enter"     Tag="Enter" />
+            </ComboBox>
+        </StackPanel>
 
         <CheckBox x:Name="ShowToastsCheck"
                   Content="Show a notification after each successful snip"

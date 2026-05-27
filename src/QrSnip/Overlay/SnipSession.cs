@@ -9,6 +9,7 @@ using QrSnip.Clipboard;
 using QrSnip.Decoding;
 using QrSnip.Interop;
 using QrSnip.Notifications;
+using QrSnip.Settings;
 
 namespace QrSnip.Overlay;
 
@@ -35,6 +36,7 @@ internal sealed class SnipSession
     private readonly AutoPasteService _autoPaste;
     private readonly IToastNotifier _toast;
     private readonly bool _autoPasteEnabled;
+    private readonly AutoPasteAppendKey _autoPasteAppendKey;
     private readonly bool _showToastsOnSuccess;
     private readonly IntPtr _autoPasteTarget;
 
@@ -49,6 +51,7 @@ internal sealed class SnipSession
         AutoPasteService autoPaste,
         IToastNotifier toast,
         bool autoPasteEnabled,
+        AutoPasteAppendKey autoPasteAppendKey,
         bool showToastsOnSuccess,
         IntPtr autoPasteTarget)
     {
@@ -58,6 +61,7 @@ internal sealed class SnipSession
         _autoPaste = autoPaste;
         _toast = toast;
         _autoPasteEnabled = autoPasteEnabled;
+        _autoPasteAppendKey = autoPasteAppendKey;
         _showToastsOnSuccess = showToastsOnSuccess;
         _autoPasteTarget = autoPasteTarget;
     }
@@ -150,7 +154,7 @@ internal sealed class SnipSession
             // Kick off the paste in the background — we don't await it
             // because the flash timer is running concurrently and we want
             // the paste to start IMMEDIATELY rather than after the flash.
-            _ = _autoPaste.PasteToWindowAsync(_autoPasteTarget);
+            _ = _autoPaste.PasteToWindowAsync(_autoPasteTarget, _autoPasteAppendKey);
             flashColor = Colors.DeepSkyBlue;
         }
         else
